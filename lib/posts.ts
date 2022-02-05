@@ -1,15 +1,20 @@
 import fs from "fs";
 import path from "path";
-import matter from "gray-matter";
+import matter, { GrayMatterFile } from "gray-matter";
 import { remark } from "remark";
 import html from "remark-html";
 
 const postsDirectory = path.join(process.cwd(), "posts");
 
-export function getSortedPostsData() {
+type MatterData = GrayMatterFile<string>["data"] & { date: string };
+export type PostData = MatterData & {
+  id: string;
+};
+
+export function getSortedPostsData(): PostData[] {
   // Get file names under /posts
   const fileNames = fs.readdirSync(postsDirectory);
-  const allPostsData = fileNames.map((fileName) => {
+  const allPostsData = fileNames.map((fileName: string) => {
     // Remove ".md" from file name to get id
     const id = fileName.replace(/\.md$/, "");
 
@@ -23,17 +28,21 @@ export function getSortedPostsData() {
     // Combine the data with the id
     return {
       id,
-      ...matterResult.data,
+      ...(matterResult.data as MatterData),
     };
   });
 
   // Sort posts by date
-  return allPostsData.sort((a, b) => b.date - a.date);
+  return allPostsData.sort((a, b) => b.date.localeCompare(a.date));
 }
 
-export function getAllPostIds() {
+export interface PostParams {
+  params: { id: string };
+}
+
+export function getAllPostIds(): PostParams[] {
   const fileNames = fs.readdirSync(postsDirectory);
-  return fileNames.map((fileName) => {
+  return fileNames.map((fileName: string) => {
     return {
       params: {
         id: fileName.replace(/\.md$/, ""),
@@ -42,7 +51,10 @@ export function getAllPostIds() {
   });
 }
 
-export async function getPostData(id) {
+export interface PostDataWithHtml extends PostData {
+  contentHtml: string;
+}
+export async function getPostData(id: string): Promise<PostDataWithHtml> {
   const fullPath = path.join(postsDirectory, `${id}.md`);
   const fileContents = fs.readFileSync(fullPath, "utf8");
 
@@ -59,6 +71,6 @@ export async function getPostData(id) {
   return {
     id,
     contentHtml,
-    ...matterResult.data,
+    ...(matterResult.data as MatterData),
   };
 }
